@@ -7,6 +7,8 @@ public partial class Employe
 {
     public int Id { get; set; }
 
+    public int? TelegramId { get; set; }
+
     public string? Firstname { get; set; }
 
     public string? Lastname { get; set; }

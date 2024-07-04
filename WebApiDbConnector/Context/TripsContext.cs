@@ -26,13 +26,15 @@ public partial class TripsContext : DbContext
 
     public virtual DbSet<Triptype> Triptypes { get; set; }
 
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+
+protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         IConfigurationRoot configuration = new ConfigurationBuilder()
             .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
             .AddJsonFile("appsettings.json")
             .Build();
         optionsBuilder.UseNpgsql(configuration.GetConnectionString("TripsData"));
+        optionsBuilder.UseLoggerFactory(Program.loggerFactory);
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -58,17 +60,18 @@ public partial class TripsContext : DbContext
 
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.Firstname)
-                .HasMaxLength(30)
+                .HasMaxLength(100)
                 .IsFixedLength()
                 .HasColumnName("firstname");
             entity.Property(e => e.Lastname)
-                .HasMaxLength(30)
+                .HasMaxLength(100)
                 .IsFixedLength()
                 .HasColumnName("lastname");
             entity.Property(e => e.Patronymic)
-                .HasMaxLength(30)
+                .HasMaxLength(100)
                 .IsFixedLength()
                 .HasColumnName("patronymic");
+            entity.Property(e => e.TelegramId).HasColumnName("telegram_id");
         });
 
         modelBuilder.Entity<Manager>(entity =>
@@ -79,15 +82,15 @@ public partial class TripsContext : DbContext
 
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.Firstname)
-                .HasMaxLength(30)
+                .HasMaxLength(100)
                 .IsFixedLength()
                 .HasColumnName("firstname");
             entity.Property(e => e.Lastname)
-                .HasMaxLength(30)
+                .HasMaxLength(100)
                 .IsFixedLength()
                 .HasColumnName("lastname");
             entity.Property(e => e.Patronymic)
-                .HasMaxLength(30)
+                .HasMaxLength(100)
                 .IsFixedLength()
                 .HasColumnName("patronymic");
         });
@@ -108,11 +111,11 @@ public partial class TripsContext : DbContext
                 .HasColumnType("timestamp without time zone")
                 .HasColumnName("contract_date");
             entity.Property(e => e.Customer)
-                .HasMaxLength(200)
+                .HasMaxLength(100)
                 .IsFixedLength()
                 .HasColumnName("customer");
             entity.Property(e => e.CustomerAddress)
-                .HasMaxLength(200)
+                .HasMaxLength(100)
                 .IsFixedLength()
                 .HasColumnName("customer_address");
             entity.Property(e => e.DeadlineContract)
@@ -122,39 +125,37 @@ public partial class TripsContext : DbContext
             entity.Property(e => e.ManagerId).HasColumnName("manager_id");
             entity.Property(e => e.TripDate)
                 .HasColumnType("timestamp without time zone")
-                .HasColumnName("trip_date");
+                .HasColumnName("tripdate");
             entity.Property(e => e.TripTypeId).HasColumnName("trip_type_id");
 
             entity.HasOne(d => d.Company).WithMany(p => p.Trips)
                 .HasForeignKey(d => d.CompanyId)
-                .OnDelete(DeleteBehavior.SetNull)
                 .HasConstraintName("trips_company_id_fkey");
 
             entity.HasOne(d => d.Employe).WithMany(p => p.Trips)
                 .HasForeignKey(d => d.EmployeId)
-                .OnDelete(DeleteBehavior.SetNull)
                 .HasConstraintName("trips_employe_id_fkey");
 
             entity.HasOne(d => d.Manager).WithMany(p => p.Trips)
                 .HasForeignKey(d => d.ManagerId)
-                .OnDelete(DeleteBehavior.SetNull)
                 .HasConstraintName("trips_manager_id_fkey");
 
             entity.HasOne(d => d.TripType).WithMany(p => p.Trips)
                 .HasForeignKey(d => d.TripTypeId)
-                .OnDelete(DeleteBehavior.SetNull)
                 .HasConstraintName("trips_trip_type_id_fkey");
         });
 
         modelBuilder.Entity<Triptype>(entity =>
         {
-            entity.HasKey(e => e.Id).HasName("triptype_pkey");
+            entity.HasKey(e => e.Id).HasName("typeoftrip_pkey");
 
             entity.ToTable("triptype");
 
-            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("nextval('typeoftrip_id_seq'::regclass)")
+                .HasColumnName("id");
             entity.Property(e => e.Typecontract)
-                .HasMaxLength(50)
+                .HasMaxLength(100)
                 .IsFixedLength()
                 .HasColumnName("typecontract");
         });

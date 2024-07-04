@@ -1,15 +1,19 @@
 
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
+using System.Net;
+using System.Text.Json;
 using WebApiDbConnector.Context;
+using WebApiDbConnector.Models;
 
 namespace WebApiDbConnector
 {
     public class Program
     {
+        public static readonly ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+
         public static void Main(string[] args)
         {
-            
+            var context = new TripsContext(); // Контекст базы
+
             var builder = WebApplication.CreateBuilder(args);
 
             // Add services to the container.
@@ -18,13 +22,6 @@ namespace WebApiDbConnector
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
-            //builder.Configuration
-            //    .SetBasePath(Directory.GetCurrentDirectory())
-            //    .AddJsonFile("appsettings.json", false, true)
-            //    .AddEnvironmentVariables();
-
-            //builder.Services.AddDbContext<TripsContext>(opt =>
-            //opt.UseNpgsql("name=TripsDatabase"));
 
             var app = builder.Build();
 
@@ -39,29 +36,11 @@ namespace WebApiDbConnector
 
             app.UseAuthorization();
 
-            var summaries = new[]
-            {
-            "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-        };
 
-            app.MapGet("/weatherforecast", (HttpContext httpContext) =>
-            {
-                var forecast = Enumerable.Range(1, 5).Select(index =>
-                    new WeatherForecast
-                    {
-                        Date = DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-                        TemperatureC = Random.Shared.Next(-20, 55),
-                        Summary = summaries[Random.Shared.Next(summaries.Length)]
-                    })
-                    .ToArray();
-                return forecast;
-            })
-            .WithName("GetWeatherForecast")
-            .WithOpenApi();
-
-            var context = new TripsContext();
             app.MapGet("/gettrips", () =>
             {
+                //ILogger logger = loggerFactory.CreateLogger("GetTrips");
+
                 var getData = from trips in context.Trips
                               join managers in context.Managers on trips.ManagerId equals managers.Id
                               join employes in context.Employes on trips.EmployeId equals employes.Id
@@ -72,14 +51,52 @@ namespace WebApiDbConnector
                                   id = trips.Id,
                                   managerName = $"{managers.Lastname.Trim()} {managers.Firstname.Trim()} {managers.Patronymic.Trim()}",
                                   employe = $"{employes.Lastname.Trim()} {employes.Firstname.Trim()} {employes.Patronymic.Trim()}",
-                                  dateOfTrip = trips.TripDate,
+                                  dateOfTrip = trips.TripDate.Value.ToShortDateString(),
                                   company = company.CompanyName.Trim(),
-                                  deadLine = trips.DeadlineContract,
+                                  deadLine = trips.DeadlineContract.Value.ToShortDateString(),
                                   customer = trips.Customer.Trim(),
                                   address = trips.CustomerAddress.Trim(),
                                   caption = trips.Caption.Trim()
                               };
+                //logger.LogInformation("TestLogger: {0}", DateTime.Now.ToShortTimeString());
                 return getData.ToList();
+            });
+
+            app.MapGet("/getemployes", () =>
+            {
+                //ILogger logger = loggerFactory.CreateLogger("GetTrips");
+
+                var getdata = from employes in context.Employes
+                              select new
+                              {
+                                  id = employes.Id,
+                                  employeName = $"{employes.Lastname.Trim()} {employes.Firstname.Trim()} {employes.Patronymic.Trim()}",
+                                  telegramId = employes.TelegramId
+                              };
+                //logger.LogInformation($"getdata: {getdata}");
+                return getdata.ToList();
+            });
+
+            app.MapPost("/asigntrip", (AsignTripToEmploye trip) =>
+            {
+                ILogger logger = loggerFactory.CreateLogger("AsingTrip");
+                
+                //logger.LogInformation($"Input status: {input}");
+                //var trip = JsonSerializer.Deserialize<AsignTripToEmploye>(input);
+                if (trip == null)
+                {
+                    return HttpStatusCode.NotFound;
+                }
+                else
+                {
+                    var editedTrip = context.Trips.FirstOrDefault(t => t.Id == trip.tripId);
+                    editedTrip.TripDate = trip.dateTrip;
+                    editedTrip.EmployeId = trip.employeId;
+                    context.Trips.Update(editedTrip);
+                    context.SaveChanges();
+                }
+
+                return HttpStatusCode.OK;
             });
 
             app.Run();
