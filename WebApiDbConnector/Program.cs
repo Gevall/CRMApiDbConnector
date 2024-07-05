@@ -1,4 +1,5 @@
 
+using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 using System.Net;
 using System.Text.Json;
 using WebApiDbConnector.Context;
@@ -18,6 +19,7 @@ namespace WebApiDbConnector
 
             // Add services to the container.
             builder.Services.AddAuthorization();
+            builder.Services.AddHttpClient();
 
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
@@ -39,18 +41,19 @@ namespace WebApiDbConnector
 
             app.MapGet("/gettrips", () =>
             {
-                //ILogger logger = loggerFactory.CreateLogger("GetTrips");
+                ILogger logger = loggerFactory.CreateLogger("GetTrips");
 
                 var getData = from trips in context.Trips
                               join managers in context.Managers on trips.ManagerId equals managers.Id
-                              join employes in context.Employes on trips.EmployeId equals employes.Id
+                              join employes in context.Employes on trips.EmployeId equals employes.Id into employeeGroup
+                              from subEmployes in employeeGroup.DefaultIfEmpty()
                               join company in context.Companies on trips.CompanyId equals company.Id
-                              join triptype in context.Triptypes on trips.TripTypeId equals triptype.Id
+                              join triptype in context.Triptypes on trips.TripTypeId equals triptype.Id 
                               select new
                               {
                                   id = trips.Id,
                                   managerName = $"{managers.Lastname.Trim()} {managers.Firstname.Trim()} {managers.Patronymic.Trim()}",
-                                  employe = $"{employes.Lastname.Trim()} {employes.Firstname.Trim()} {employes.Patronymic.Trim()}",
+                                  employe = subEmployes != null ? $"{subEmployes.Lastname.Trim()} {subEmployes.Firstname.Trim()} {subEmployes.Patronymic.Trim()}" : "",
                                   dateOfTrip = trips.TripDate.Value.ToShortDateString(),
                                   company = company.CompanyName.Trim(),
                                   deadLine = trips.DeadlineContract.Value.ToShortDateString(),
@@ -58,7 +61,7 @@ namespace WebApiDbConnector
                                   address = trips.CustomerAddress.Trim(),
                                   caption = trips.Caption.Trim()
                               };
-                //logger.LogInformation("TestLogger: {0}", DateTime.Now.ToShortTimeString());
+                logger.LogInformation("TestLogger: {0}", DateTime.Now.ToShortTimeString());
                 return getData.ToList();
             });
 
@@ -75,6 +78,29 @@ namespace WebApiDbConnector
                               };
                 //logger.LogInformation($"getdata: {getdata}");
                 return getdata.ToList();
+            });
+
+            app.MapGet("/getmytrips/{telegramId}", (long telegramId) =>
+            {
+                var getData = from trips in context.Trips
+                              join managers in context.Managers on trips.ManagerId equals managers.Id
+                              join employes in context.Employes on trips.EmployeId equals employes.Id
+                              join company in context.Companies on trips.CompanyId equals company.Id
+                              join triptype in context.Triptypes on trips.TripTypeId equals triptype.Id
+                              where telegramId == employes.TelegramId
+                              select new
+                              {
+                                  id = trips.Id,
+                                  managerName = $"{managers.Lastname.Trim()} {managers.Firstname.Trim()} {managers.Patronymic.Trim()}",
+                                  employe = $"{employes.Lastname.Trim()} {employes.Firstname.Trim()} {employes.Patronymic.Trim()}",
+                                  dateOfTrip = trips.TripDate.Value.ToShortDateString(),
+                                  company = company.CompanyName.Trim(),
+                                  deadLine = trips.DeadlineContract.Value.ToShortDateString(),
+                                  customer = trips.Customer.Trim(),
+                                  address = trips.CustomerAddress.Trim(),
+                                  caption = trips.Caption.Trim()
+                              };
+                return getData.ToList();
             });
 
             app.MapPost("/asigntrip", (AsignTripToEmploye trip) =>
@@ -99,7 +125,9 @@ namespace WebApiDbConnector
                 return HttpStatusCode.OK;
             });
 
+            
             app.Run();
         }
+
     }
 }
